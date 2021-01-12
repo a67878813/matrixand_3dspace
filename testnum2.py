@@ -155,6 +155,7 @@ def get_World2Camera_matrix2(_eye,_front,_Vup):
     return T_world_to_camera
 
 def update_front(pitch,yaw,old_front):
+    #计算
     pitch = float(pitch)
     yaw = float(yaw)
     
@@ -266,3 +267,126 @@ def get_World2Camera_matrix4(_eye,_pitch,_yaw,_roll):
     T_world_to_camera = n
     
     return T_world_to_camera
+
+
+def get_ProjectionT_matrix_cameraSpace_minusZ(_l,_r,_b,_t,_nearVal,_farVal):
+    l = float(_l)
+    r = float(_r)
+    b = float(_b)
+    t = float(_t)
+    n = float(_nearVal)
+    f = float(_farVal)
+    
+    
+    T = np.array([n/r,0,0,
+                  0,0,n/t,0,0,
+                  0,0,-(f+n)/(f-n),-2*f*n/(f-n),
+                  0,0,-1,0])
+    print(T)
+    T_camera_to_clipspace = T.reshape(4,4)
+    return T_camera_to_clipspace
+
+
+
+def get_Projection_matrix_cameraSpace2ClipSpace_minusZ(_l,_r,_b,_t,_nearVal,_farVal):
+    
+    #camera space to clip space
+    
+    l = float(_l)
+    r = float(_r)
+    b = float(_b)
+    t = float(_t)
+    n = float(_nearVal)
+    f = float(_farVal)
+    
+    
+    P = np.array([n/r,0,0,0,
+                  0,n/t,0,0,
+                  0,0,-(f+n)/(f-n),-2*f*n/(f-n),
+                  0,0,-1,0])
+    print(P)
+    P_camera_to_clipspace = P.reshape(4,4)
+    return P_camera_to_clipspace
+
+
+def get_Projection_matrix_cameraSpace2ClipSpace_minusZ_FOV(_fov,_aspect,_near,_far):
+    #camera space to clip space
+    #_aspect宽高比 宽/高
+    fov = float(_fov)
+    aspect = float(_aspect)
+    n = float(_near)
+    f = float(_far)
+    #h = near*np.tan(fov/2*np.pi/180)
+    h = n*np.tan(fov/360*np.pi)
+    w = h*aspect
+    
+    
+    P = np.array([1/aspect/np.tan(fov/360*np.pi),0,0,0,
+                  0,1/np.tan(fov/360*np.pi),0,0,
+                  0,0,-(f+n)/(f-n),-2*f*n/(f-n),
+                  0,0,-1,0])
+    print(P)
+    P_camera_to_clipspace = P.reshape(4,4)
+    return P_camera_to_clipspace
+
+
+def projection_division(_array):
+    #clip_space to NDC
+    a = np.array(_array)
+    ax = a[0]
+    ay = a[1]
+    az = a[2]
+    aw = a[3]
+    cx = ax/aw
+    cy = ay/aw
+    cz = az/aw
+    cw = aw/aw
+    array2 = np.array([[cx],[cy],[cz],[cw]])
+    return array2
+
+def get_Orthographic_Projection_matrix_cameraSpace2NDC_minusZ(_l,_r,_b,_t,_nearVal,_farVal):
+    l = float(_l)
+    r = float(_r)
+    b = float(_b)
+    t = float(_t)
+    n = float(_nearVal)
+    f = float(_farVal)
+    
+    
+    P = np.array([1/r,0,0,0,
+                  0,1/t,0,0,
+                  0,0,-2/(f-n),-(f+n)/(f-n),
+                  0,0,0,1])
+    print(P)
+    P_camera_to_clipspace = P.reshape(4,4)
+    return P_camera_to_clipspace
+
+
+def Viewport_NDC_to_screen(sx,sy,_width,_hight,ns,fs):
+    #sx sy 屏幕左下角
+    #ns近场 fs远场
+    #线性映射 -1，sx      1, sx +width
+    #-1,sy       1,sy+hight
+    #-1,ns           1,fs
+    sx = float(sx)
+    sy = float(sy)
+    _width = float(_width)
+    _hight = float(_hight)
+    ns = float(ns)
+    fs = float(fs)
+    
+    ViewPort = np.array([_width/2,0,0,sx+_width/2,
+                  0,_hight/2,   0,   sy+_hight/2,
+                  0,0,     (fs-ns)/2,  (fs+ns)/2,
+                  0,0,0,1])
+    
+    ViewPort = ViewPort.reshape(4,4)
+    return ViewPort
+
+
+
+#模型顶点array 左乘模型变换矩阵    世界坐标
+#                                 搞事情需要转换到这个坐标系
+# 
+#                                       左乘 视变换矩阵 左乘 投影变换矩阵  ——透视除法（除齐次坐标欧米伽分量） 左乘视口变换矩阵                                   -----屏幕
+#SPACE：   local                  world             eye              clip                              NDC (normalized Device Coordinates)([-1,1] * 3)          screen
